@@ -9,20 +9,21 @@ if len(sys.argv) == 2:
 else:
     filename = "Data/portfolio.csv"
 
-def read_portfolio(filename):
+def read_portfolio(filename: str) -> list:
     portfolio = []
     with open(filename,"r") as f:
         rows = csv.reader(f)
         headers = next(rows)
-        for row in rows:
+        types = [str, int, float]
+        for i, row in enumerate(rows, start=1):
             try:
-                holding = (row[0], int(row[1]), float(row[2]))
+                holding = [func(val) for func, val in zip(types, row)]
                 portfolio.append(holding)
             except ValueError:
-                print("Couldn't parse", row)
+                print(f"Row {i}: Couldn't convert {row}")
     return portfolio
 
-def read_prices(filename):
+def read_prices(filename: str) -> dict:
     stock_prices = {}
     with open(filename,"r") as f:
         rows = csv.reader(f)
@@ -34,31 +35,44 @@ def read_prices(filename):
                 continue
     return stock_prices
 
-portfolio = read_portfolio("Data/portfolio.csv")
-prices = read_prices("Data/prices.csv")
-
-def make_report():
+def make_report(portfolio, prices) -> list:
     report = []
     for holding in portfolio:
+        d = {}
         name, shares, price = holding
         change = prices[name] - price
-        d = (name, shares, price, change)
+        d["name"] = name
+        d["shares"] = shares
+        d["price"] = price
+        d["change"] = change
         report.append(d)
     return report
 
-current_price = 0
-portfolio_cost = 0
-for name, shares, cost in portfolio:
-    current_price += prices[name] * shares
-    portfolio_cost += shares * cost
+def calc_current_price(report, prices):
+    return sum(s['shares'] * prices[s['name']] for s in report)
 
-print(f"Portfolio cost is {portfolio_cost}\nCurrent value is {current_price}")
-report = make_report()
-print(report)
-headers = ("Name", "Shares", "Price", "Change")
-print(f"{headers[0]:>10s} {headers[1]:>10s} {headers[2]:>10s} {headers[3]:>10s}")
-separator = "----------"
-print(f"{separator:10s} {separator:10s} {separator:10s} {separator:10s}")
-for name, shares, price, change in report:
-    price = "$" + str(price)
-    print(f"{name:>10s} {shares:>10d} {price:>10s} {change:>10.2f}")
+def calc_portfolio_cost(report):
+    return sum(s['shares'] * s['price'] for s in report)
+
+def print_report(pcost, currentp, report):
+    print(f"Portfolio cost is {pcost}\nCurrent value is {currentp}")
+    headers = ("Name", "Shares", "Price", "Change")
+    print(f"{headers[0]:>10s} {headers[1]:>10s} {headers[2]:>10s} {headers[3]:>10s}")
+    separator = "----------"
+    print(f"{separator:10s} {separator:10s} {separator:10s} {separator:10s}")
+    for s in report:
+        name = s['name']
+        shares = s['shares']
+        price = '$' + str(s['price'])
+        change = s['change']
+        print(f"{name:>10s} {shares:>10d} ${price:>10s} {change:>10.2f}")
+
+def portfolio_report(filename1, filename2):
+    portfolio = read_portfolio(filename1)
+    prices = read_prices(filename2)
+
+    report = make_report(portfolio, prices)
+    current_price = calc_current_price(report, prices)
+    portfolio_cost = calc_portfolio_cost(report)
+
+    print_report(portfolio_cost, current_price, report)
